@@ -8,16 +8,15 @@
      Alphanumeric Data String: 'ATNA40CU06-0 '
    Extension blocks: 1
  Checksum: 0x25
-@@ -35,49 +34,12 @@
+@@ -35,49 +34,14 @@
  
  Block 1, DisplayID Extension Block:
    Version: 2.0
 -  Extension Count: 0
    Display Product Primary Use Case: None of the listed primary use cases; generic display
--  Product Identification Data Block (0x20), OUI 4C-83-00:
--    Product Code: 16797
--    Year of Manufacture: 2032
-+  Product Identification Data Block (0x20):
+   Product Identification Data Block (0x20), OUI 4C-83-00:
+     Product Code: 16797
+     Year of Manufacture: 2032
    Display Parameters Data Block (0x21):
 -    Image size: 300.0 mm x 190.0 mm
 -    Display native pixel format: 2880x1800
@@ -59,7 +58,7 @@
    Colorimetry Data Block:
      BT2020RGB
    HDR Static Metadata Data Block:
-@@ -88,29 +50,14 @@
+@@ -88,29 +52,14 @@
        Static metadata type 1
      Desired content max luminance: 116 (616.884 cd/m^2)
      Desired content max frame-average luminance: 96 (400.000 cd/m^2)

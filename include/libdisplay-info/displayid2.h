@@ -118,4 +118,28 @@ di_displayid2_get_product_primary_use_case(const struct di_displayid2 *displayid
 const struct di_cta_data_block *const *
 di_displayid2_data_block_get_cta_data_blocks(const struct di_displayid2_data_block *data_block);
 
+/**
+ * Product Identification Data Block, defined in section 4.1.
+ */
+struct di_displayid2_product_id {
+	uint8_t vendor[3]; /* IEEE OUI code */
+	uint16_t product;
+	uint32_t serial; /* zero if unset */
+
+	/* These fields are zero if unset */
+	int manufacture_week;
+	int manufacture_year;
+	int model_year;
+
+	const char *product_name; /* NULL if unset */
+};
+
+/**
+ * Get a Product Identification Data Block.
+ *
+ * Returns NULL if the data block tag isn't DI_DISPLAYID2_DATA_BLOCK_PRODUCT_ID.
+ */
+const struct di_displayid2_product_id *
+di_displayid2_data_block_get_product_id(const struct di_displayid2_data_block *data_block);
+
 #endif

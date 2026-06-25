@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 
 #include "bits.h"
@@ -32,6 +33,66 @@ add_failure(struct di_displayid2 *displayid2, const char fmt[], ...)
 	va_start(args, fmt);
 	_di_logger_va_add_failure(displayid2->logger, fmt, args);
 	va_end(args);
+}
+
+static bool
+parse_product_id_block(struct di_displayid2 *displayid2,
+		       struct di_displayid2_data_block *data_block,
+		       const uint8_t *data, size_t size)
+{
+	struct di_displayid2_product_id *out = &data_block->product_id;
+	uint8_t raw_week, raw_year, product_name_len;
+	int year = 0;
+
+	if (size < 0x0F) {
+		add_failure(displayid2,
+			    "Product Identification Data Block size (%zu) too small.",
+			    size);
+		return false;
+	}
+
+	memcpy(&out->vendor, &data[0x03], sizeof(out->vendor));
+	out->product = (uint16_t) (data[0x06] | ((uint16_t) data[0x07] << 8));
+	out->serial = (uint32_t) (data[0x08] |
+				  ((uint32_t) data[0x09] << 8) |
+				  ((uint32_t) data[0x0A] << 16) |
+				  ((uint32_t) data[0x0B] << 24));
+
+	raw_week = data[0x0C];
+	raw_year = data[0x0D];
+	if (raw_year <= 0x0E) {
+		add_failure(displayid2, "Year set to reserved value.");
+	} else {
+		year = 2000 + raw_year;
+	}
+	if (raw_week == 0xFF) {
+		/* Special flag for model year */
+		out->model_year = year;
+	} else {
+		out->manufacture_year = year;
+		if (raw_week > 0x34) {
+			add_failure(displayid2,
+				    "Invalid week %" PRIu8 " of manufacture.",
+				    raw_week);
+		} else if (raw_week > 0) {
+			out->manufacture_week = raw_week;
+		}
+	}
+
+	product_name_len = data[0x0E];
+	if (product_name_len > DISPLAYID2_MAX_PRODUCT_NAME_LEN) {
+		add_failure(displayid2, "Product name size %" PRIu8 " too large.",
+			    product_name_len);
+	} else if (size < (size_t) 0x0F + product_name_len) {
+		add_failure(displayid2, "Product name size %" PRIu8 " is invalid.",
+			    product_name_len);
+	} else if (product_name_len > 0) {
+		memcpy(data_block->product_name, &data[0x0F], product_name_len);
+		data_block->product_name[product_name_len] = '\0';
+		out->product_name = data_block->product_name;
+	}
+
+	return true;
 }
 
 static bool
@@ -102,12 +163,16 @@ parse_data_block(struct di_displayid2 *displayid2, const uint8_t *data,
 		goto error;
 
 	switch (tag) {
+	case DI_DISPLAYID2_DATA_BLOCK_PRODUCT_ID:
+		if (!parse_product_id_block(displayid2, data_block, data, data_block_size)) {
+			goto error;
+		}
+		break;
 	case DI_DISPLAYID2_DATA_BLOCK_CTA861:
 		if (!parse_cta861_block(displayid2, data_block, data, data_block_size)) {
 			goto error;
 		}
 		break;
-	case DI_DISPLAYID2_DATA_BLOCK_PRODUCT_ID:
 	case DI_DISPLAYID2_DATA_BLOCK_DISPLAY_PARAMS:
 	case DI_DISPLAYID2_DATA_BLOCK_TYPE_VII_TIMING:
 	case DI_DISPLAYID2_DATA_BLOCK_TYPE_VIII_TIMING:
@@ -310,4 +375,13 @@ di_displayid2_data_block_get_cta_data_blocks(const struct di_displayid2_data_blo
 		return NULL;
 	}
 	return (const struct di_cta_data_block *const *) data_block->cta861.data_blocks;
+}
+
+const struct di_displayid2_product_id *
+di_displayid2_data_block_get_product_id(const struct di_displayid2_data_block *data_block)
+{
+	if (data_block->tag != DI_DISPLAYID2_DATA_BLOCK_PRODUCT_ID) {
+		return NULL;
+	}
+	return &data_block->product_id;
 }

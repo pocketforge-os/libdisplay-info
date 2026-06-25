@@ -33,6 +33,11 @@
  */
 #define DISPLAYID2_CTA861_MAX_DATA_BLOCKS 248
 
+/**
+ * Maximum number of bytes for the product name, defined in section 4.1.5.
+ */
+#define DISPLAYID2_MAX_PRODUCT_NAME_LEN 236
+
 struct di_displayid2 {
 	int revision;
 	enum di_displayid2_product_primary_use_case product_primary_use_case;
@@ -52,6 +57,10 @@ struct di_displayid2_data_block {
 		struct di_cta_data_block *data_blocks[DISPLAYID2_CTA861_MAX_DATA_BLOCKS + 1];
 		size_t data_blocks_len;
 	} cta861;
+
+	/* Used for DI_DISPLAYID2_DATA_BLOCK_PRODUCT_ID */
+	struct di_displayid2_product_id product_id;
+	char product_name[DISPLAYID2_MAX_PRODUCT_NAME_LEN + 1];
 };
 
 bool

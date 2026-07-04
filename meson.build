@@ -20,8 +20,10 @@ dep_hwdata = dependency('hwdata', required: false, native: true)
 if dep_hwdata.found()
 	hwdata_dir = dep_hwdata.get_variable(pkgconfig: 'pkgdatadir')
 	pnp_ids = files(hwdata_dir / 'pnp.ids')
+	ouis = files(hwdata_dir / 'oui.txt')
 else
 	pnp_ids = files('/usr/share/hwdata/pnp.ids')
+	ouis = files('/usr/share/hwdata/oui.txt')
 endif
 
 gen_search_table = find_program('tool/gen-search-table.py')
@@ -29,6 +31,13 @@ pnp_id_table = custom_target(
 	'pnp-id-table.c',
 	command: [ gen_search_table, pnp_ids, '@OUTPUT@', 'pnp_id_table' ],
 	output: 'pnp-id-table.c',
+)
+
+gen_oui_table = find_program('tool/gen-oui-table.py')
+oui_table = custom_target(
+	'oui-table.c',
+	command: [ gen_oui_table, ouis, '@OUTPUT@' ],
+	output: 'oui-id-table.c',
 )
 
 cc = meson.get_compiler('c')
@@ -71,6 +80,7 @@ di_lib = library(
 		'cta-vic-table.c',
 		'hdmi-vic.c',
 		pnp_id_table,
+		oui_table,
 	],
 	include_directories: include_directories('include'),
 	dependencies: [math],

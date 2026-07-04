@@ -12,6 +12,10 @@
 const char *
 pnp_id_table(const char *key);
 
+/* Generated file oui-id-table.c: */
+const char *
+_di_get_oui_name(uint8_t oui[static 3]);
+
 static bool
 cta_data_block_allowed_multiple(enum di_cta_data_block_tag tag)
 {
@@ -430,30 +434,51 @@ char *
 di_info_get_make(const struct di_info *info)
 {
 	const struct di_edid_vendor_product *evp;
-	char pnp_id[(sizeof(evp->manufacturer)) + 1] = { 0, };
+	char pnp_id[sizeof(evp->manufacturer) + 1] = {0};
+	const struct di_displayid2_product_id *dpi;
+	uint8_t oui[3] = {0};
+	bool has_oui = false;
 	const char *manuf;
 	struct memory_stream m;
 
-	if (!info->edid)
+	assert(!(info->edid && info->displayid2)); /* only one of these should be populated */
+	if (info->edid) {
+		evp = di_edid_get_vendor_product(info->edid);
+		memcpy(pnp_id, evp->manufacturer, sizeof(evp->manufacturer));
+		manuf = pnp_id_table(pnp_id);
+	} else if (info->displayid2) {
+		dpi = get_displayid2_product_id(info->displayid2);
+		if (!dpi)
+			return NULL;
+		memcpy(oui, dpi->vendor, sizeof(dpi->vendor));
+		has_oui = true;
+		manuf = _di_get_oui_name(oui);
+	} else {
 		return NULL;
+	}
 
 	if (!memory_stream_open(&m))
 		return NULL;
 
-	evp = di_edid_get_vendor_product(info->edid);
-	memcpy(pnp_id, evp->manufacturer, sizeof(evp->manufacturer));
-
-	manuf = pnp_id_table(pnp_id);
 	if (manuf) {
 		encode_ascii_string(m.fp, manuf);
 		return memory_stream_close(&m);
 	}
 
-	fputs("PNP(", m.fp);
-	encode_ascii_string(m.fp, pnp_id);
-	fputs(")", m.fp);
+	if (pnp_id[0] != '\0') {
+		fputs("PNP(", m.fp);
+		encode_ascii_string(m.fp, pnp_id);
+		fputs(")", m.fp);
+		return memory_stream_close(&m);
+	}
 
-	return memory_stream_close(&m);
+	if (has_oui) {
+		fprintf(m.fp, "OUI(%02X-%02X-%02X)", oui[0], oui[1], oui[2]);
+		return memory_stream_close(&m);
+	}
+
+	memory_stream_cleanup(&m);
+	return NULL;
 }
 
 static const char *

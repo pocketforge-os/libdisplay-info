@@ -112,6 +112,24 @@ edid_get_cta_data_block(const struct di_edid *edid, enum di_cta_data_block_tag t
 	return NULL;
 }
 
+static const struct di_displayid2_product_id *
+get_displayid2_product_id(struct di_displayid2 *displayid2)
+{
+	const struct di_displayid2_data_block *const *blocks;
+	size_t i;
+	enum di_displayid2_data_block_tag tag;
+
+	blocks = di_displayid2_get_data_blocks(displayid2);
+	for (i = 0; blocks[i] != NULL; i++) {
+		tag = di_displayid2_data_block_get_tag(blocks[i]);
+		if (tag != DI_DISPLAYID2_DATA_BLOCK_PRODUCT_ID)
+			continue;
+		return di_displayid2_data_block_get_product_id(blocks[i]);
+	}
+
+	return NULL;
+}
+
 static void
 derive_hdr_static_metadata(const struct di_info *info,
 			   struct di_hdr_static_metadata *hsm)
@@ -438,23 +456,15 @@ di_info_get_make(const struct di_info *info)
 	return memory_stream_close(&m);
 }
 
-char *
-di_info_get_model(const struct di_info *info)
+static const char *
+get_edid_product_name(const struct di_edid *edid)
 {
-	const struct di_edid_vendor_product *evp;
 	const struct di_edid_display_descriptor *const *desc;
-	struct memory_stream m;
 	size_t i;
 	enum di_edid_display_descriptor_tag tag;
 	const char *str;
 
-	if (!info->edid)
-		return NULL;
-
-	if (!memory_stream_open(&m))
-		return NULL;
-
-	desc = di_edid_get_display_descriptors(info->edid);
+	desc = di_edid_get_display_descriptors(edid);
 	for (i = 0; desc[i]; i++) {
 		tag = di_edid_display_descriptor_get_tag(desc[i]);
 		if (tag != DI_EDID_DISPLAY_DESCRIPTOR_PRODUCT_NAME)
@@ -462,13 +472,45 @@ di_info_get_model(const struct di_info *info)
 		str = di_edid_display_descriptor_get_string(desc[i]);
 		if (str[0] == '\0')
 			continue;
+		return str;
+	}
+
+	return NULL;
+}
+
+char *
+di_info_get_model(const struct di_info *info)
+{
+	const struct di_edid_vendor_product *evp;
+	const struct di_displayid2_product_id *dpi;
+	struct memory_stream m;
+	uint16_t num;
+	const char *str;
+
+	assert(!(info->edid && info->displayid2)); /* only one of these should be populated */
+	if (info->edid) {
+		evp = di_edid_get_vendor_product(info->edid);
+		num = evp->product;
+		str = get_edid_product_name(info->edid);
+	} else if (info->displayid2) {
+		dpi = get_displayid2_product_id(info->displayid2);
+		if (!dpi)
+			return NULL;
+		num = dpi->product;
+		str = dpi->product_name;
+	} else {
+		return NULL;
+	}
+
+	if (!memory_stream_open(&m))
+		return NULL;
+
+	if (str) {
 		encode_ascii_string(m.fp, str);
 		return memory_stream_close(&m);
 	}
 
-	evp = di_edid_get_vendor_product(info->edid);
-	fprintf(m.fp, "0x%04" PRIX16, evp->product);
-
+	fprintf(m.fp, "0x%04" PRIX16, num);
 	return memory_stream_close(&m);
 }
 

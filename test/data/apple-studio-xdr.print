@@ -1,6 +1,6 @@
 make: {null}
 model: Studio Display XDR
-serial: {null}
+serial: 0xD540D05F
 HDR static metadata:
 luminance 0.000000-2030.481567, maxFALL 603.665771
 metadata type1=yes

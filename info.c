@@ -514,23 +514,15 @@ di_info_get_model(const struct di_info *info)
 	return memory_stream_close(&m);
 }
 
-char *
-di_info_get_serial(const struct di_info *info)
+static const char *
+get_edid_serial_str(const struct di_edid *edid)
 {
 	const struct di_edid_display_descriptor *const *desc;
-	const struct di_edid_vendor_product *evp;
-	struct memory_stream m;
 	size_t i;
 	enum di_edid_display_descriptor_tag tag;
 	const char *str;
 
-	if (!info->edid)
-		return NULL;
-
-	if (!memory_stream_open(&m))
-		return NULL;
-
-	desc = di_edid_get_display_descriptors(info->edid);
+	desc = di_edid_get_display_descriptors(edid);
 	for (i = 0; desc[i]; i++) {
 		tag = di_edid_display_descriptor_get_tag(desc[i]);
 		if (tag != DI_EDID_DISPLAY_DESCRIPTOR_PRODUCT_SERIAL)
@@ -538,13 +530,46 @@ di_info_get_serial(const struct di_info *info)
 		str = di_edid_display_descriptor_get_string(desc[i]);
 		if (str[0] == '\0')
 			continue;
+		return str;
+	}
+
+	return NULL;
+}
+
+char *
+di_info_get_serial(const struct di_info *info)
+{
+	const struct di_edid_vendor_product *evp;
+	const struct di_displayid2_product_id *dpi;
+	struct memory_stream m;
+	uint32_t num;
+	const char *str;
+
+	assert(!(info->edid && info->displayid2)); /* only one of these should be populated */
+	if (info->edid) {
+		evp = di_edid_get_vendor_product(info->edid);
+		num = evp->serial;
+		str = get_edid_serial_str(info->edid);
+	} else if (info->displayid2) {
+		dpi = get_displayid2_product_id(info->displayid2);
+		if (!dpi)
+			return NULL;
+		num = dpi->serial;
+		str = NULL;
+	} else {
+		return NULL;
+	}
+
+	if (!memory_stream_open(&m))
+		return NULL;
+
+	if (str) {
 		encode_ascii_string(m.fp, str);
 		return memory_stream_close(&m);
 	}
 
-	evp = di_edid_get_vendor_product(info->edid);
-	if (evp->serial != 0) {
-		fprintf(m.fp, "0x%08" PRIX32, evp->serial);
+	if (num != 0) {
+		fprintf(m.fp, "0x%08" PRIX32, num);
 		return memory_stream_close(&m);
 	}
 

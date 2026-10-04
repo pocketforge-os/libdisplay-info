@@ -9,6 +9,13 @@ di_edid_print = executable(
 
 print_harness = find_program('./edid-print-check.sh', native: true)
 
+pocketforge_source_locator = find_program('python3', native: true)
+test(
+	'pocketforge-source-locator',
+	pocketforge_source_locator,
+	args: files('pocketforge-source-locator.py'),
+)
+
 test_cases = [
 	'acer-p1276',
 	'amazon-fire-tv-48',

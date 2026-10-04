@@ -11,7 +11,7 @@ include:
 # $ git push -f -o ci.variable="FDO_FORCE_REBUILD=1"
 variables:
   FDO_UPSTREAM_REPO: 'emersion/libdisplay-info'
-  FDO_DISTRIBUTION_TAG: '2025-01-20.0'
+  FDO_DISTRIBUTION_TAG: '2026-10-04.0'
 
 workflow:
   rules:
@@ -47,7 +47,7 @@ prepare-container:
     FDO_DISTRIBUTION_EXEC: |
       grep $V4L_UTILS_COMMIT ./subprojects/v4l-utils.wrap >/dev/null || \
         (echo "Keep v4l-utils.wrap and CI in sync!" && exit 1)
-      git clone https://git.linuxtv.org/v4l-utils.git
+      git clone https://github.com/pocketforge-os/v4l-utils.git
       cd v4l-utils
       git checkout $V4L_UTILS_COMMIT
       meson setup build/ \
